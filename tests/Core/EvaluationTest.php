@@ -215,4 +215,20 @@ describe('edit kinds in the evaluation', function () {
         // Los errores de teclado se siguen corrigiendo con la etapa 2 encendida.
         expect($with['kinds']['substitution']['correct'])->toBeGreaterThan(0);
     });
+    it('measures two words glued by a bottom-row letter, which only the one-edit stage can split', function () {
+        $generator = new TypoGenerator(KeyboardLayout::qwertyEs(), 5);
+        $pair = $generator->makePair('letter_for_space', 'lana', 'merino');
+
+        expect($pair)->toMatch('/^lana[vbcnxm]merino$/')
+            ->and($generator->makePair('omission', 'lana', 'merino'))->toBeNull();
+
+        $evaluator = new CorrectorEvaluator(KeyboardLayout::qwertyEs(), new Normalizer);
+        $base = ['costPerChar' => 1.0, 'minCost' => 2.0];
+        [$without, $with] = $evaluator->evaluate(pecleEvalVocabulary(), [$base, $base + ['edits' => true]], sample: 30, seed: 1)['configs'];
+
+        expect($with['kinds']['letter_for_space']['cases'])->toBeGreaterThan(10)
+            ->and($with['kinds']['letter_for_space']['correct'])->toBeGreaterThan($with['kinds']['letter_for_space']['cases'] * 0.8)
+            ->and($with['kinds']['letter_for_space']['wrong'])->toBe(0)
+            ->and($without['kinds']['letter_for_space']['correct'])->toBe(0);
+    });
 });

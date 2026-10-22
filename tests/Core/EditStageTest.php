@@ -58,6 +58,34 @@ describe('one-edit stage', function () {
             ->and($cost('telas', 'tela'))->toBe(2.1);        // 1,3 (la s es vecina de la a) + 0,8 por borrar la última
     });
 
+    it('cuts a word in two where a bottom-row letter stands in for the space, with the cost of that key', function () {
+        $trie = pecleEditTrie(['lana', 'merino', 'azul']);
+        $cut = fn (string $typed, bool $open = false) => array_column(array_map(
+            fn (EditCandidate $c) => [$c->text, $c],
+            pecleEditStage()->letterForSpace($trie, mb_str_split($typed), $open),
+        ), 1, 0);
+
+        expect($cut('lanabmerino'))->toHaveKey('lana merino')
+            ->and($cut('lanabmerino')['lana merino']->kind)->toBe(EditCandidate::LETTER_FOR_SPACE)
+            ->and($cut('lanabmerino')['lana merino']->cost)->toBe(1.0)       // b: sobre la barra
+            ->and($cut('lananmerino')['lana merino']->cost)->toBe(1.1)       // n: a un lado
+            ->and($cut('lanaxmerino')['lana merino']->cost)->toBe(1.3)       // x: en el extremo
+            ->and($cut('lanasmerino'))->toBe([])                              // la s no es de la fila inferior
+            ->and($cut('lanabmer'))->toBe([])                                // "mer" no es una palabra
+            ->and($cut('lanabmer', open: true))->toHaveKey('lana mer')       // pero se está escribiendo
+            ->and($cut('lanabmer', open: true)['lana mer']->isWord)->toBeFalse()
+            ->and($cut('lanabm', open: true))->toBe([]);                     // una letra sola no basta
+    });
+
+    it('can be turned off, and the halves must have the minimum length', function () {
+        $trie = pecleEditTrie(['lana', 'merino', 'de', 'ab']);
+        $typed = mb_str_split('lanabmerino');
+
+        expect((new EditStage(new EditCosts(KeyboardLayout::qwertyEs()), false, 1.0, 0.3, splitWords: false))->letterForSpace($trie, $typed, false))->toBe([])
+            ->and(pecleEditStage()->letterForSpace($trie, mb_str_split('debmerino'), false))->toBe([])      // "de" tiene 2
+            ->and((new EditStage(new EditCosts(KeyboardLayout::qwertyEs()), false, 1.0, 0.3, minHalf: 2))->letterForSpace($trie, mb_str_split('debmerino'), false))->not->toBe([]);
+    });
+
     it('reads the position of a capital as a missing A, Z, Q or S, and nothing else', function () {
         $trie = pecleEditTrie(['lana', 'lano', 'lazo', 'lado', 'lasa']);
         $slip = fn (string $typed, int $at) => array_column(array_map(

@@ -195,4 +195,18 @@ describe('autocomplete', function () use ($catalog) {
 
         expect($suggest('Algodón ', null, 2))->toHaveCount(2);
     });
+
+    it('completes a word that was split in two, because a letter took the place of the space', function () {
+        $entities = ['a' => 'Lana Merino', 'b' => 'Lana Merina', 'c' => 'Lino'];
+        [$suggest] = pecleCompleter($entities);
+        // "lanabmer" ya pasó por el corrector: una sola palabra escrita se convirtió en dos.
+        $resolution = new Resolution('lanabmer', 'lana mer', [new TokenResolution('lanabmer', 'lana mer', 1.0, 'letter_for_space')]);
+
+        $suggestions = $suggest('lanabmer', $resolution);
+
+        // Sigue el estilo de lo escrito (minúsculas), como en cualquier otra corrección.
+        expect(pecleTexts($suggestions))->toEqualCanonicalizing(['lana merino', 'lana merina'])
+            ->and($suggestions[0]->corrected)->toBeTrue()
+            ->and($suggestions[0]->completion)->toBeNull();
+    });
 });

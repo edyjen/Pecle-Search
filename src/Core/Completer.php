@@ -85,7 +85,10 @@ final class Completer
         $fixed = [];
         foreach ($resolution->tokens as $token) {
             if ($token->corrected()) {
-                $fixed[mb_strtolower($token->applied)] = true;
+                // Una palabra partida en dos ("lana merino") deja las dos como corregidas.
+                foreach (preg_split('/\s+/u', mb_strtolower($token->applied), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $word) {
+                    $fixed[$word] = true;
+                }
             }
         }
         $base = '';

@@ -56,6 +56,14 @@ return [
         // en escritorio, por "lana"). La mayúscula marca dónde falta la letra, que es una de las teclas vecinas de esas dos.
         'shift_slip' => 0.7,            // la letra que falta es la A o la Z
         'shift_slip_near' => 1.0,       // ... o la Q o la S
+        // Una letra de la fila inferior en lugar del espacio ("lanabmerino" por "lana merino"): la palabra no es nada
+        // conocido pero se parte en dos palabras del índice. Los costos dependen de lo cerca que esa tecla queda de la barra.
+        'split_words' => true,          // apagar para no partir palabras
+        'space_slip' => 1.0,            // la letra del corte es la V o la B
+        'space_slip_mid' => 1.1,        // ... la C o la N
+        'space_slip_far' => 1.3,        // ... la X o la M
+        'split_min_half' => 3,          // largo mínimo de cada mitad (la derecha, si es una palabra completa)
+        'split_min_prefix' => 3,        // largo mínimo de la mitad derecha si es solo un comienzo (se está escribiendo): con 2 parte más palabras legítimas
         // Para una palabra a medio escribir con un error ("jrse" mientras se escribe "jrsey"): si nada más corrige,
         // aterrizar en el comienzo de una palabra. Corrige más, pero también cambia más palabras legítimas que no
         // están en el índice (no puede distinguirlas de una a medio escribir); la interfaz avisa y deja buscar lo escrito.

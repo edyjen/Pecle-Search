@@ -27,12 +27,18 @@ final class EditStage
         /** Mismos pesos que el ranking de la capa 1: rank = costo - gamma*ln(1+freq) - completitud. */
         private readonly float $freqGamma = 1.0,
         private readonly float $completenessWeight = 0.3,
+        /** Cortar una palabra desconocida en dos cuando una letra de la fila inferior ocupó el lugar del espacio. */
+        private readonly bool $splitWords = true,
+        /** Largo mínimo de cada mitad si es una palabra completa. */
+        private readonly int $minHalf = 3,
+        /** Largo mínimo de la mitad derecha si es solo el comienzo de una palabra (la que se está escribiendo). */
+        private readonly int $minPrefixHalf = 3,
     ) {}
 
     /** La misma etapa, pero aterrizando también en el comienzo de una palabra. */
     public function withPrefixLanding(): self
     {
-        return new self($this->costs, true, $this->freqGamma, $this->completenessWeight);
+        return new self($this->costs, true, $this->freqGamma, $this->completenessWeight, $this->splitWords, $this->minHalf, $this->minPrefixHalf);
     }
 
     /**
@@ -152,6 +158,72 @@ final class EditStage
                 $text = implode('', array_slice($typed, 0, $at)).$letter.implode('', array_slice($typed, $at));
                 $candidates[] = $this->candidate($text, $cost, EditCandidate::SHIFT_SLIP, $node);
             }
+        }
+
+        return $this->sorted($candidates);
+    }
+
+    /**
+     * Cortes de una palabra desconocida en dos palabras del vocabulario, si la letra del corte es
+     * una de la fila inferior que el pulgar confunde con la barra espaciadora ("lanabmerino" ->
+     * "lana merino"): la letra sobra y el espacio falta. Es el mismo error del Shift pero al revés
+     * de lo que parece: aquí lo que se ve de más es una letra.
+     *
+     * Evidencia fuerte: la palabra no es palabra ni comienzo de ninguna, y cada mitad sí lo es. La
+     * izquierda tiene que ser una palabra completa; la derecha también, salvo que la persona todavía
+     * la esté escribiendo ($open), en cuyo caso basta un comienzo. El texto de cada candidato es
+     * "izquierda derecha" con la letra del corte ya sustituida por un espacio.
+     *
+     * @param  list<string>  $typed  la palabra ya plegada (solo a-z), sabida desconocida
+     * @param  bool  $open  es la palabra que se está escribiendo (último token, sin espacio detrás)
+     * @return list<EditCandidate> mejores primero (menor rank)
+     */
+    public function letterForSpace(Trie $trie, array $typed, bool $open): array
+    {
+        $length = count($typed);
+        $minRight = $open ? $this->minPrefixHalf : $this->minHalf;
+        if (! $this->splitWords || $length < $this->minHalf + 1 + $minRight) {
+            return [];
+        }
+
+        $candidates = [];
+        $left = $trie->root;
+        for ($i = 0; $i < $length - 1; $i++) {
+            $left = $left->children[$typed[$i]] ?? null;
+            if ($left === null) {
+                break; // lo tecleado ya no sigue ninguna palabra: ningún corte más a la derecha tiene izquierda válida
+            }
+
+            // $left es el nodo de typed[0..i]; el corte sería la letra i + 1.
+            $leftLength = $i + 1;
+            $cut = $typed[$i + 1] ?? null;
+            if ($leftLength < $this->minHalf || ! $left->isWord || $cut === null) {
+                continue;
+            }
+            $cost = $this->costs->spaceKey($cut);
+            if ($cost === null) {
+                continue;
+            }
+
+            $right = $trie->root;
+            for ($j = $i + 2; $j < $length && $right !== null; $j++) {
+                $right = $right->children[$typed[$j]] ?? null;
+            }
+            $rightLength = $length - ($i + 2);
+            if ($right === null) {
+                continue;
+            }
+            $rightIsWord = $right->isWord && $rightLength >= $this->minHalf;
+            $rightIsStart = $open && $rightLength >= $this->minPrefixHalf && ($right->topK ?? []) !== [];
+            if (! $rightIsWord && ! $rightIsStart) {
+                continue;
+            }
+
+            $freqLeft = $left->freq;
+            $freqRight = $right->isWord ? $right->freq : ($right->topK[0]->freq ?? 0);
+            $text = implode('', array_slice($typed, 0, $leftLength)).' '.implode('', array_slice($typed, $i + 2));
+            $rank = $cost - $this->freqGamma * (log1p($freqLeft) + log1p($freqRight)) / 2 - $this->completenessWeight * ($right->isWord ? 1.0 : 0.5);
+            $candidates[] = new EditCandidate($text, $cost, min($freqLeft, $freqRight), $rank, EditCandidate::LETTER_FOR_SPACE, $right->isWord);
         }
 
         return $this->sorted($candidates);

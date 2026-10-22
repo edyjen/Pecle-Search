@@ -21,7 +21,11 @@ namespace Pecle\Search\Core;
  *     cruzadas ("jrsey", "jerssey", "jersye"). Solo aterriza en palabras
  *     completas y se aplica la palabra entera. Además, si la palabra trae una
  *     mayúscula a media palabra ("lNa", "lNA") se entiende que se pulsó Shift o
- *     Mayús en lugar de la A (o la Z, Q, S) y esa letra es la que falta.
+ *     Mayús en lugar de la A (o la Z, Q, S) y esa letra es la que falta. Y si una
+ *     palabra desconocida se parte en dos palabras del vocabulario por una letra de la
+ *     fila inferior (V, B, C, N, X, M — las que el pulgar confunde con la barra
+ *     espaciadora), esa letra era el espacio: "lanabmerino" -> "lana merino". En ese
+ *     caso la palabra aplicada son dos.
  * Gana la de menor costo; con el mismo costo, la mejor por rank. Atajo exacto:
  * como la capa 1 cuesta al menos `shortCircuitBelow` (una sustitución a la tecla
  * más cercana), si la etapa 2 encuentra algo por menos de eso la capa 1 ni se
@@ -65,7 +69,8 @@ final class Corrector
             if ($i % 2 === 1 || $part === '') {
                 continue;
             }
-            $token = $this->resolveWord($part);
+            // La palabra que se está escribiendo: la última, sin espacio detrás.
+            $token = $this->resolveWord($part, $i === count($parts) - 1);
             $tokens[] = $token;
             $parts[$i] = $token->applied;
         }
@@ -79,7 +84,7 @@ final class Corrector
         return max($this->minCost, $this->costPerChar * $length);
     }
 
-    private function resolveWord(string $word): TokenResolution
+    private function resolveWord(string $word, bool $open = false): TokenResolution
     {
         $folded = $this->normalizer->fold($word);
         $length = mb_strlen($folded);
@@ -103,14 +108,12 @@ final class Corrector
             // así que vale también para palabras demasiado cortas para la etapa 2.
             $slipAt = $this->shiftSlipAt($word);
             if ($slipAt !== null) {
-                foreach ($this->editStage->shiftSlip($this->trie, $chars, $slipAt) as $slip) {
-                    if ($slip->cost <= $limit) {
-                        if ($edit === null || $slip->cost < $edit->cost || (abs($slip->cost - $edit->cost) < 1e-9 && $slip->rank < $edit->rank)) {
-                            $edit = $slip;
-                        }
-                        break;
-                    }
-                }
+                $edit = $this->cheaper($edit, $this->bestWithin($this->editStage->shiftSlip($this->trie, $chars, $slipAt), $limit));
+            }
+
+            // Una letra de la fila inferior en lugar del espacio: "lanabmerino" por "lana merino".
+            if (preg_match('/^[a-z]+$/', $folded) === 1) {
+                $edit = $this->cheaper($edit, $this->bestWithin($this->editStage->letterForSpace($this->trie, $chars, $open), $limit));
             }
 
             // Atajo: la capa 1 no puede ser más barata que una sustitución a la tecla más cercana.
@@ -177,6 +180,32 @@ final class Corrector
         return $best;
     }
 
+    /** El mejor de dos candidatos: menor costo; con el mismo costo, el mejor rank. */
+    private function cheaper(?EditCandidate $current, ?EditCandidate $other): ?EditCandidate
+    {
+        if ($other === null || $current === null) {
+            return $other ?? $current;
+        }
+
+        return $other->cost < $current->cost || (abs($other->cost - $current->cost) < 1e-9 && $other->rank < $current->rank) ? $other : $current;
+    }
+
+    /**
+     * El primero de unos candidatos (ya ordenados) que cabe en el tope.
+     *
+     * @param  list<EditCandidate>  $candidates
+     */
+    private function bestWithin(array $candidates, float $limit): ?EditCandidate
+    {
+        foreach ($candidates as $candidate) {
+            if ($candidate->cost <= $limit) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
     /** @param list<string> $chars */
     private function bestEdit(EditStage $stage, array $chars, float $limit): ?EditCandidate
     {
@@ -191,12 +220,40 @@ final class Corrector
 
     private function fromEdit(string $word, EditCandidate $edit): TokenResolution
     {
+        if ($edit->kind === EditCandidate::LETTER_FOR_SPACE) {
+            // Se parte lo escrito, no se reescribe: así se conservan las mayúsculas y los acentos de cada mitad.
+            return new TokenResolution($word, $this->splitAt($word, (int) mb_strpos($edit->text, ' ')), $edit->cost, $edit->kind);
+        }
+
         return new TokenResolution(
             $word,
             $this->matchCase($word, $edit->text),
             $edit->cost,
             $edit->isWord ? $edit->kind : TokenResolution::PREFIX,
         );
+    }
+
+    /**
+     * $word con la letra que ocupa la posición $foldedIndex (contada en la palabra ya plegada) cambiada por
+     * un espacio. El plegado quita las marcas combinantes sueltas, así que la posición se busca letra a letra.
+     */
+    private function splitAt(string $word, int $foldedIndex): string
+    {
+        $result = '';
+        $position = 0;
+        $replaced = false;
+        foreach (mb_str_split($word) as $char) {
+            $width = mb_strlen($this->normalizer->fold($char));
+            if (! $replaced && $width > 0 && $position === $foldedIndex) {
+                $result .= ' ';
+                $replaced = true;
+            } elseif (! ($replaced && $width === 0)) { // las marcas combinantes de la letra cambiada se van con ella
+                $result .= $char;
+            }
+            $position += $width;
+        }
+
+        return $result;
     }
 
     /**

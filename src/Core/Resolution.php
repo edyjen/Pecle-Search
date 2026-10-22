@@ -5,7 +5,7 @@ namespace Pecle\Search\Core;
 /** Resultado de pasar un query por el corrector. */
 final readonly class Resolution
 {
-    /** @param list<TokenResolution> $tokens solo las palabras (no los espacios) */
+    /** @param list<TokenResolution> $tokens solo las palabras (no los espacios); una palabra partida en dos (letter_for_space) es un solo token */
     public function __construct(
         /** Lo que escribió el usuario. */
         public string $original,

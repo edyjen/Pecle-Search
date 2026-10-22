@@ -17,6 +17,14 @@ Buscador por palabras con corrección silenciosa de errores de tecleo. *Pecle = 
     mayúscula a media palabra (una sola seguida de minúsculas, o mayúsculas hasta el final) dice dónde falta la
     letra, y se prueba solo ahí con las teclas que tocan Shift y Mayús: A y Z (0,7), Q y S (1,0). Como hay
     evidencia, vale también para palabras de tres letras. Una mayúscula inicial no cuenta.
+  - *Una letra de la fila inferior en lugar del espacio*: "lanabmerino" por "lana merino". Si una palabra que no
+    es nada conocido se parte en dos palabras del índice por una V, B, C, N, X o M (las teclas que el pulgar
+    confunde con la barra espaciadora), esa letra era el espacio y la palabra se aplica como dos. Cada mitad
+    debe tener 3 letras o más y ser una palabra completa; la derecha puede ser solo un comienzo (3+ letras)
+    mientras se está escribiendo. Cuesta 1,0 con V y B, 1,1 con C y N, 1,3 con X y M. La palabra aplicada
+    conserva las mayúsculas y los acentos de lo escrito, y un solo `TokenResolution` abarca las dos palabras
+    (`edit = letter_for_space`). Se apaga con `edits.split_words = false`. El caso inverso, un espacio en lugar
+    de una letra ("la a" por "lana"), no se corrige: lo escrito casi siempre tiene sentido por sí solo.
   Deja intactas las palabras que ya existen o se están escribiendo (prefijo), las de menos de 3 letras y
   las que llevan dígitos. No corrige dos errores a la vez (una omisión y una sustitución juntas).
 - **Autocompletado** (`PecleSearchManager::suggest`): completa lo que se escribe con las palabras que ya

@@ -38,7 +38,27 @@ final readonly class EditCosts
         public float $shiftSlip = 0.7,
         /** Lo mismo, en lugar de la Q o la S (las diagonales de Mayús y Shift). */
         public float $shiftSlipNear = 1.0,
+        /** Letra en lugar del espacio: la V y la B, justo encima de la barra espaciadora. */
+        public float $spaceSlip = 1.0,
+        /** Lo mismo con la C o la N, a un lado. */
+        public float $spaceSlipMid = 1.1,
+        /** Lo mismo con la X o la M, en los extremos de lo que cubre el pulgar. */
+        public float $spaceSlipFar = 1.3,
     ) {}
+
+    /**
+     * Cuánto cuesta que $letter sea un espacio mal pulsado ("lanabmerino" por "lana merino"): las
+     * teclas de la fila inferior que el pulgar confunde con la barra. Null para cualquier otra.
+     */
+    public function spaceKey(string $letter): ?float
+    {
+        return match ($letter) {
+            'v', 'b' => $this->spaceSlip,
+            'c', 'n' => $this->spaceSlipMid,
+            'x', 'm' => $this->spaceSlipFar,
+            default => null,
+        };
+    }
 
     /**
      * Cuánto cuesta que la letra que falta sea $letter, cuando la palabra trae una

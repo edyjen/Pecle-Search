@@ -198,6 +198,82 @@ describe('corrector with the one-edit stage', function () {
             ->and(pecleEditCorrector(['jersey'], prefixLanding: true)->resolve('jrse')->applied)->toBe('jerse');
     });
 
+    describe('a bottom-row letter pressed in place of the space bar', function () {
+        $words = ['lana', 'merino', 'algodon', 'grueso', 'azul', 'denim'];
+
+        it('splits the word where the letter is, and the letter becomes the space', function (string $typed, string $expected) use ($words) {
+            $resolution = pecleEditCorrector($words)->resolve($typed);
+
+            expect($resolution->applied)->toBe($expected)
+                ->and($resolution->corrected())->toBeTrue()
+                ->and(array_map(fn (TokenResolution $t) => $t->edit, array_values(array_filter($resolution->tokens, fn (TokenResolution $t) => $t->corrected()))))
+                ->toBe([EditCandidate::LETTER_FOR_SPACE]);
+        })->with([
+            'v' => ['lanavmerino', 'lana merino'],
+            'b' => ['lanabmerino', 'lana merino'],
+            'c' => ['lanacmerino', 'lana merino'],
+            'n' => ['lananmerino', 'lana merino'],
+            'x' => ['lanaxmerino', 'lana merino'],
+            'm' => ['lanammerino', 'lana merino'],
+            'en una frase' => ['denim lanabmerino azul', 'denim lana merino azul'],
+            'palabras largas' => ['algodonbgrueso', 'algodon grueso'],
+        ]);
+
+        it('keeps the capitals and the accents of what was typed', function (string $typed, string $expected) {
+            $resolution = pecleEditCorrector(['lana', 'merino', 'algodon', 'grueso'])->resolve($typed);
+
+            expect($resolution->applied)->toBe($expected);
+        })->with([
+            'mayúscula inicial' => ['Lanabmerino', 'Lana merino'],
+            'cada palabra con la suya' => ['LanabMerino', 'Lana Merino'],
+            'todo en mayúsculas' => ['LANABMERINO', 'LANA MERINO'],
+            'con acento' => ['AlgodónbGrueso', 'Algodón Grueso'],
+        ]);
+
+        it('accepts the start of a word on the right only while that word is still being typed', function () use ($words) {
+            $corrector = pecleEditCorrector($words);
+
+            expect($corrector->resolve('lanabmer')->applied)->toBe('lana mer')               // escribiendo
+                ->and($corrector->resolve('lanabmer ')->applied)->not->toBe('lana mer ')   // ya terminó: "mer" no es una palabra
+                ->and($corrector->resolve('lanabmer azul')->applied)->not->toBe('lana mer azul');
+        });
+
+        it('needs a whole word on each side and a letter of the bottom row between them', function (string $typed) {
+            $resolution = pecleEditCorrector(['lana', 'merino', 'de', 'cono'])->resolve($typed);
+
+            expect($resolution->tokens[0]->edit)->not->toBe(EditCandidate::LETTER_FOR_SPACE);
+        })->with([
+            'sin letra en el corte' => 'lanasmerino',
+            'otra tecla (la d)' => 'lanadmerino',
+            'izquierda demasiado corta' => 'debmerino',
+            'derecha demasiado corta (palabra terminada)' => 'lanabde ',
+            'la derecha no es una palabra' => 'lanabmerinx',
+        ]);
+
+        it('leaves words that already exist or are being typed alone', function (string $typed) {
+            $resolution = pecleEditCorrector(['lana', 'merino', 'lanabmerinos'])->resolve($typed);
+
+            expect($resolution->applied)->toBe($typed);
+        })->with(['una palabra del vocabulario' => 'lanabmerinos', 'el comienzo de una' => 'lanabmerin']);
+
+        it('does nothing when the one-edit stage is off', function () {
+            expect(pecleEditCorrector(['lana', 'merino'], edits: false)->resolve('lanabmerino')->tokens[0]->edit)->not->toBe(EditCandidate::LETTER_FOR_SPACE);
+        });
+
+        it('does not split a word with digits or symbols', function (string $typed) {
+            expect(pecleEditCorrector(['lana', 'merino'])->resolve($typed)->applied)->toBe($typed);
+        })->with(['lana2bmerino', 'lana-bmerino']);
+
+        it('the more frequent reading wins when a word could be cut in two places', function () {
+            $trie = Vocabulary::fromFrequencies(['lana' => 50, 'merino' => 40, 'lanam' => 1, 'erino' => 1])->toTrie(24);
+            $normalizer = new Normalizer;
+            $layout = KeyboardLayout::qwertyEs();
+            $corrector = new Corrector($trie, new SearchEngine($layout, $normalizer), $normalizer, 3, 1.0, 2.0, 0.0, new EditStage(new EditCosts($layout)), 4, $layout->minSubstitutionCost());
+
+            expect($corrector->resolve('lanammerino')->applied)->toBe('lana merino');
+        });
+    });
+
     describe('Shift or Caps Lock pressed in place of a letter', function () {
         // Teléfono: Shift mayusculiza la letra que sigue ("lNa"). Escritorio: Mayús mayusculiza todo lo que sigue ("lNA").
         it('reads a capital in the middle of the word as the missing letter', function (string $typed, string $expected) {

@@ -78,6 +78,17 @@ final class CorrectorEvaluator
             }
         }
 
+        // Errores de frase: cada palabra de la muestra pegada con la siguiente; lo esperado son las dos separadas.
+        foreach (TypoGenerator::PHRASE_KINDS as $kind) {
+            foreach ($chosen as $i => $first) {
+                $second = $chosen[($i + 1) % count($chosen)];
+                $typo = $generator->makePair($kind, $first, $second);
+                if ($typo !== null && $first !== $second && $fullTrie->exactNode($typo) === null) {
+                    $typos[$kind][] = [$first.' '.$second, $typo];
+                }
+            }
+        }
+
         $results = [];
         foreach ($configs as $config) {
             $margin = $config['minMargin'] ?? 0.0;

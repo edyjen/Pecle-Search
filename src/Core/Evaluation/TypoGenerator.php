@@ -29,6 +29,15 @@ final class TypoGenerator
      */
     public const EDIT_KINDS = ['repeat', 'neighbor_dup', 'double_omission'];
 
+    /**
+     * Errores que mezclan dos palabras: una letra de la fila inferior en lugar del
+     * espacio ("lanabmerino" por "lana merino"). Se fabrican con makePair().
+     */
+    public const PHRASE_KINDS = ['letter_for_space'];
+
+    /** Las teclas de la fila inferior que el pulgar confunde con la barra espaciadora. */
+    private const SPACE_KEYS = ['v', 'b', 'c', 'n', 'x', 'm'];
+
     private int $state;
 
     public function __construct(
@@ -69,6 +78,16 @@ final class TypoGenerator
         };
 
         return $typo === null || $typo === $word ? null : $typo;
+    }
+
+    /** Las dos palabras pegadas por una letra de la fila inferior (la del espacio que no se pulsó); null si el tipo no es de frase. */
+    public function makePair(string $kind, string $first, string $second): ?string
+    {
+        if ($kind !== 'letter_for_space') {
+            return null;
+        }
+
+        return $first.self::SPACE_KEYS[$this->pick(count(self::SPACE_KEYS))].$second;
     }
 
     /** @param list<string> $chars */

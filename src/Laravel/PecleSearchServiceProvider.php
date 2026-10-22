@@ -58,6 +58,9 @@ final class PecleSearchServiceProvider extends ServiceProvider
             (float) $app['config']->get('pecle_search.edits.last_letter_penalty'),
             (float) $app['config']->get('pecle_search.edits.shift_slip'),
             (float) $app['config']->get('pecle_search.edits.shift_slip_near'),
+            (float) $app['config']->get('pecle_search.edits.space_slip', 1.0),
+            (float) $app['config']->get('pecle_search.edits.space_slip_mid', 1.1),
+            (float) $app['config']->get('pecle_search.edits.space_slip_far', 1.3),
         ));
 
         $this->app->singleton(EditStage::class, fn (Application $app) => new EditStage(
@@ -65,6 +68,9 @@ final class PecleSearchServiceProvider extends ServiceProvider
             false,
             (float) $app['config']->get('pecle_search.engine.freq_gamma'),
             (float) $app['config']->get('pecle_search.engine.completeness_weight'),
+            (bool) $app['config']->get('pecle_search.edits.split_words', true),
+            (int) $app['config']->get('pecle_search.edits.split_min_half', 3),
+            (int) $app['config']->get('pecle_search.edits.split_min_prefix', 3),
         ));
 
         $this->app->singleton(IndexStore::class, fn (Application $app) => new CacheIndexStore(

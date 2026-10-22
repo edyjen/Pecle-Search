@@ -126,6 +126,7 @@ final class EvaluateCommand extends Command
         );
 
         $this->line('Teclas = sustitución, sustitución doble y mano corrida (la capa 1). Letra de más/menos y cruzadas = omisión, inserción, transposición, letra repetida, tecla vecina de más y letra doble con una menos (la etapa 2; sin ella no se corrigen).');
+        $this->line('letter_for_space = dos palabras del índice pegadas por una letra de la fila inferior (V, B, C, N, X, M) en lugar del espacio; lo esperado son las dos palabras separadas (solo con la etapa 2).');
         $this->line('«Palabras legítimas cambiadas» = palabras bien escritas que no están en el índice y el corrector convirtió en otra: el riesgo real.');
         $this->line('Margen = ventaja mínima del mejor candidato de la capa 1 sobre otro distinto; con menos, la corrección es ambigua y no se aplica (0 = no se exige).');
 

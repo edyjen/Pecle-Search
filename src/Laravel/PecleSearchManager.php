@@ -44,7 +44,20 @@ final class PecleSearchManager
         private readonly Completer $completer,
         private readonly Container $container,
         private readonly Config $config,
+        private readonly DatabaseTokenStore $tokens,
     ) {}
+
+    /** ¿El índice guarda ids numéricos? (`numeric_index` en sus fuentes). */
+    public function numericIndex(string $index): bool
+    {
+        return $this->tokens->numeric($index);
+    }
+
+    /** La tabla de tokens del índice: `search_tokens` o `numeric_search_tokens`. */
+    public function tokensTable(string $index): string
+    {
+        return $this->tokens->tokensTable($index);
+    }
 
     /**
      * Reemplaza el interruptor de config('pecle_search.enabled') por una

@@ -13,7 +13,7 @@ beforeEach(function () {
 
 function pecleDbStore(int $chunk = 200): DatabaseTokenStore
 {
-    return new DatabaseTokenStore(DB::connection(), $chunk);
+    return new DatabaseTokenStore(DB::connection(), config(), $chunk);
 }
 
 function pecleRows(string $index, string $entity): array

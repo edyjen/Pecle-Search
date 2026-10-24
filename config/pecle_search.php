@@ -96,5 +96,17 @@ return [
         // 'fabrics' => [
         //     ['model' => App\Models\Fabric::class, 'columns' => ['name', 'code']],
         // ],
+        //
+        // **`numeric_index => true`** cuando el id de la entidad es numérico (autoincremental): el índice
+        // vive en `numeric_search_tokens` y la búsqueda compara entero con entero, sin convertir la llave
+        // a texto; así el motor usa la PK del índice (medido: 15× más rápido en el caso selectivo).
+        // Por defecto el id se guarda como texto (ULID/UUID) en `search_tokens`, que es lo correcto para
+        // proyectos como IdeaTex. **Todas las fuentes de un índice tienen que coincidir**: la tabla y el
+        // espacio de `entity_id` son del índice, así que uno mixto se rechaza; separá las entidades en
+        // dos índices (como `fabrics` y `fabric_names`).
+        //
+        // 'patients' => [
+        //     ['model' => App\Models\Patient::class, 'columns' => ['name'], 'numeric_index' => true],
+        // ],
     ],
 ];

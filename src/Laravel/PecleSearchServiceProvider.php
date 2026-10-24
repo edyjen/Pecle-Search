@@ -83,8 +83,12 @@ final class PecleSearchServiceProvider extends ServiceProvider
             (int) $app['config']->get('pecle_search.engine.top_k'),
         ));
 
-        $this->app->singleton(TokenStore::class, fn (Application $app) => new DatabaseTokenStore($app['db']->connection()));
-        $this->app->singleton(CompletionStore::class, fn (Application $app) => $app->make(TokenStore::class));
+        $this->app->singleton(DatabaseTokenStore::class, fn (Application $app) => new DatabaseTokenStore(
+            $app['db']->connection(),
+            $app['config'],
+        ));
+        $this->app->alias(DatabaseTokenStore::class, TokenStore::class);
+        $this->app->singleton(CompletionStore::class, fn (Application $app) => $app->make(DatabaseTokenStore::class));
         $this->app->singleton(Completer::class, fn (Application $app) => new Completer(
             $app->make(CompletionStore::class),
             $app->make(Normalizer::class),

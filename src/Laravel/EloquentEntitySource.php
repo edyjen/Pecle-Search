@@ -5,11 +5,14 @@ namespace Pecle\Search\Laravel;
 use Pecle\Search\Core\Contracts\EntitySource;
 use Pecle\Search\Core\Contracts\EntityTexts;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * Entidades sacadas de un modelo: el id es su llave y el texto, sus columnas
  * unidas con espacio. Una columna puede venir de una relación con notación de
- * punto ("fabric.name"); esas relaciones se cargan por adelantado. Respeta los
+ * punto ("fabric.name"); esas relaciones se cargan por adelantado. Si el primer
+ * segmento es un atributo y no una relación ("address.state" con `address`
+ * casteado a array) se lee con data_get. Respeta los
  * global scopes del modelo (las filas con soft delete no entran).
  */
 final class EloquentEntitySource implements EntitySource, EntityTexts
@@ -69,12 +72,23 @@ final class EloquentEntitySource implements EntitySource, EntityTexts
         return implode(' ', $parts);
     }
 
-    /** @return list<string> relaciones que hay que cargar para leer las columnas con punto */
+    /**
+     * @return list<string> relaciones que hay que cargar para leer las columnas con punto. Una columna cuyo primer
+     *                      segmento no es una relación del modelo (p. ej. "address.state", un atributo casteado a
+     *                      array) se lee con data_get y no se carga nada.
+     */
     private function relations(): array
     {
+        $prototype = new $this->model;
+
         $relations = [];
         foreach ($this->columns as $column) {
-            if (str_contains($column, '.')) {
+            if (! str_contains($column, '.')) {
+                continue;
+            }
+
+            $first = strstr($column, '.', true);
+            if (method_exists($prototype, $first) && $prototype->{$first}() instanceof Relation) {
                 $relations[] = substr($column, 0, (int) strrpos($column, '.'));
             }
         }

@@ -70,7 +70,7 @@ Para desarrollar el paquete junto a un proyecto, usar `{ "type": "path", "url": 
    ```php
    'indexes' => ['products' => [['model' => Product::class, 'columns' => ['name', 'sku']]]],
    ```
-   Una columna puede venir de una relación con punto (`'brand.name'`). Para que el cambio de un modelo
+   Una columna puede venir de una relación con punto (`'brand.name'`) o de una clave dentro de un atributo casteado a array/JSON (`'address.state'`). Para que el cambio de un modelo
    relacionado reindexe a sus dependientes, `'watch' => [['model' => Brand::class, 'foreign_key' => 'brand_id', 'attributes' => ['name']]]`.
    Una fuente más compleja es una clase que implemente `Core\Contracts\EntitySource`.
 5. `php artisan pecle-search:rebuild` para la carga inicial (conviene una migración que lo llame al

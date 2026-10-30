@@ -1,6 +1,6 @@
 # PecleSearch
 
-Buscador por palabras con corrección silenciosa de errores de tecleo. *Pecle = Pedro + Claude.*
+Buscador por palabras con corrección silenciosa de errores de tecleo.
 
 - **Índice de palabras** (`search_tokens`): cada entidad (una tela, un color…) queda asociada a sus
   palabras normalizadas (minúsculas, sin acentos). Buscar es un `WHERE EXISTS` por palabra: cada
@@ -140,7 +140,7 @@ encuentra algo más barato la capa 1 ni se ejecuta (resultado idéntico, y es la
 
 `edits.prefix_landing` (encendido) deja que, si nada más corrige, la etapa 2 aterrice en el comienzo de una
 palabra: sirve para lo que se está escribiendo con un error ("jrse" mientras se escribe "jrsey"), a costa de
-cambiar más palabras legítimas que no están en el índice (con el vocabulario de IdeaTex, +2 a +7 puntos). No
+cambiar más palabras legítimas que no están en el índice (según el vocabulario, +2 a +7 puntos). No
 puede distinguir una palabra a medio escribir de una completa que no existe, así que la interfaz debe avisar
 de la corrección y dejar buscar lo escrito. Se apaga con `edits.prefix_landing = false`.
 
